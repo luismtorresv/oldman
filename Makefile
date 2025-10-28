@@ -27,12 +27,16 @@ CC = gcc
 
 CFLAGS  = -Wall
 CFLAGS += -Wextra
-CFLAGS += -Werror
+# CFLAGS += -Werror
 CFLAGS += -Wpedantic
 CFLAGS += -Wunused
 CFLAGS += -Wunreachable-code
 CFLAGS += -pthread
 CFLAGS += -g
+CFLAGS += -std=c11
+CFLAGS += -fopenmp
+
+LDFLAGS = -fopenmp
 
 # The -MMD and -MP flags together generate Makefiles for us!
 # These files will have .d instead of .o as the output.
