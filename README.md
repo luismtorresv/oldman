@@ -1,5 +1,9 @@
 # Utilidad de Gestión Segura y Eficiente de Archivos (GSEA)
 
+> [!IMPORTANT]
+>
+> Enlace al vídeo de sustentación: <TODO>
+
 Utilidad de línea de comandos escrita en C (estándar 11) que permite a un
 usuario, de una máquina corriendo Linux, comprimir/descomprimir y
 encriptar/desencriptar archivos o incluso directorios completos de manera
