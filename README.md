@@ -1,73 +1,23 @@
-# `gsea` - Final project/exam for Operating Systems class
+# Utilidad de Gestión Segura y Eficiente de Archivos (GSEA)
 
-Command-line utility written in C for compressing and decompressing files or
-directories with symmetric encryption.
+Utilidad de línea de comandos escrita en C (estándar 11) que permite a un
+usuario, de una máquina corriendo Linux, comprimir/descomprimir y
+encriptar/desencriptar archivos o incluso directorios completos de manera
+eficiente.
 
-# More in-depth description
+## Cómo correr el proyecto
 
-This project implements a command-line backup system in C (C11) with OpenMP and
-no third-party dependencies. It creates USTAR archives, applies GZIP (Deflate;
-fixed Huffman) compression with a custom encoder, optionally encrypts with
-AES‑256‑CTR (in-house implementation), supports parallel splitting into USB
-fragments, and includes a minimal HTTP PUT uploader for on‑premises servers
-(plain HTTP).
-
-## Build
-
-````bash
+```bash
 make
-````
-
-This builds the gsea binary. Invoke:
-
-````bash
 ./gsea
-````
+```
 
-## Usage
+El programa te mostrará la ayuda para que sepas qué hacer.
 
-### Create a backup
+## Uso
 
-````bash
-./gsea create \
-  --folders /path/dir1 /path/dir2 \
-  --out /path/output.sbk \
-  --threads 8 \
-  --encrypt yes \
-  --key  00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff \
-  --nonce 00000000000000000000000000000001 \
-  --split-mb 4096 \
-  --usb-dirs /media/USB1 /media/USB2 \
-  --http-put http://127.0.0.1:8080/upload/backup.sbk
-````
+Pendiente
 
-### Restore a backup
+## Licencia
 
-````bash
-./gsea restore \
-  --input /path/output.sbk \
-  --dest /path/restore \
-  --key  00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff \
-  --nonce 00000000000000000000000000000001
-````
-
-### Restore from fragments
-
-````bash
-./gsea restore \
-  --fragments /media/USB1/output.sbk.part_000000 /media/USB2/output.sbk.part_000001 \
-  --dest /path/restore \
-  --key  00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff \
-  --nonce 00000000000000000000000000000001
-````
-
-## Notes
-
-- Compression: Deflate (fixed Huffman) with a GZIP wrapper.
-- Parallelism: OpenMP for USB splitting and concurrent HTTP upload. The encoder
-  is single-pass; additional parallelism is possible by partitioning the TAR
-  into multiple members.
-- AES‑256‑CTR provides confidentiality; integrity/authentication are out of
-  scope.
-- The inflater supports only fixed‑Huffman streams produced by this encoder.
-- The HTTP uploader supports only `http://` for demonstration.
+No aplica pues es un proyecto académico.
