@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 >
-> Enlace al vídeo de sustentación: <TODO>
+> Enlace al vídeo de sustentación: <https://youtu.be/3XSrHHPwwfo>
 
 Utilidad de línea de comandos escrita en C (estándar 11) que permite a un
 usuario, de una máquina corriendo Linux, comprimir/descomprimir y
