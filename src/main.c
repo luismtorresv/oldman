@@ -1,204 +1,181 @@
-#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
+#include "compress.h"
+#include "encrypt.h"
+#include "file_ops.h"
+#include "worker.h"
 
-#include "aes256ctr.h"
-#include "cloud_http.h"
-#include "fsutils.h"
-#include "gzip.h"
-#include "restore.h"
-#include "split.h"
-#include "tar.h"
+#define DEFAULT_COMP_ALG "rle"
+#define DEFAULT_ENC_ALG "vigenere"
 
-static void usage(void) {
-  printf(
-      "Usage:\n"
-      "  gsea create --folders DIR... --out FILE [--threads N] [--encrypt "
-      "yes|no]\n"
-      "                    [--key HEX64] [--nonce HEX32] [--split-mb N] "
-      "[--usb-dirs DIR...]\n"
-      "                    [--http-put URL]\n"
-      "  gsea restore (--input FILE | --fragments PARTS... ) --dest DIR "
-      "[--key HEX64] [--nonce HEX32]\n");
+typedef struct {
+    int compress;
+    int decompress;
+    int encrypt;
+    int decrypt;
+    char *comp_alg;
+    char *enc_alg;
+    char *input;
+    char *output;
+} options_t;
+
+/**
+ * Prints usage information for the program.
+ */
+static void print_usage(const char *prog_name) {
+    printf("Usage: %s [OPTIONS]\n", prog_name);
+    printf("\nOptions:\n");
+    printf("  -c              Compress input\n");
+    printf("  -d              Decompress input\n");
+    printf("  -e              Encrypt input\n");
+    printf("  -u              Decrypt input\n");
+    printf("  --comp-alg ALG  Compression algorithm (default: %s)\n", DEFAULT_COMP_ALG);
+    printf("  --enc-alg ALG   Encryption algorithm (default: %s)\n", DEFAULT_ENC_ALG);
+    printf("  -i FILE/DIR     Input file or directory\n");
+    printf("  -o FILE/DIR     Output file or directory\n");
+    printf("  -h              Show this help message\n");
 }
-static int parse_hex(const char* s, unsigned char* out, size_t outlen) {
-  size_t n = strlen(s);
-  if (n != outlen * 2) return -1;
-  for (size_t i = 0; i < outlen; i++) {
-    unsigned v;
-    if (sscanf(s + 2 * i, "%2x", &v) != 1) return -1;
-    out[i] = (unsigned char)v;
-  }
-  return 0;
+
+/**
+ * Parses command line arguments into an options structure.
+ */
+static int parse_arguments(int argc, char **argv, options_t *opts) {
+    int opt;
+    int option_index = 0;
+
+    static struct option long_options[] = {
+        {"comp-alg", required_argument, 0, 'C'},
+        {"enc-alg",  required_argument, 0, 'E'},
+        {0, 0, 0, 0}
+    };
+
+    memset(opts, 0, sizeof(options_t));
+    opts->comp_alg = DEFAULT_COMP_ALG;
+    opts->enc_alg = DEFAULT_ENC_ALG;
+
+    while ((opt = getopt_long(argc, argv, "cdeui:o:h", long_options, &option_index)) != -1) {
+        switch (opt) {
+            case 'c':
+                opts->compress = 1;
+                break;
+            case 'd':
+                opts->decompress = 1;
+                break;
+            case 'e':
+                opts->encrypt = 1;
+                break;
+            case 'u':
+                opts->decrypt = 1;
+                break;
+            case 'C':
+                opts->comp_alg = optarg;
+                break;
+            case 'E':
+                opts->enc_alg = optarg;
+                break;
+            case 'i':
+                opts->input = optarg;
+                break;
+            case 'o':
+                opts->output = optarg;
+                break;
+            case 'h':
+                return -1;
+            default:
+                return -1;
+        }
+    }
+
+    return 0;
 }
-int main(int argc, char** argv) {
-  if (argc < 2) {
-    usage();
+
+/**
+ * Validates the parsed options.
+ */
+static int validate_options(const options_t *opts) {
+    int operation_count = opts->compress + opts->decompress + opts->encrypt + opts->decrypt;
+
+    if (operation_count == 0) {
+        fprintf(stderr, "Error: no operation specified\n");
+        return -1;
+    }
+
+    if (opts->compress && opts->decompress) {
+        fprintf(stderr, "Error: cannot compress and decompress simultaneously\n");
+        return -1;
+    }
+
+    if (opts->encrypt && opts->decrypt) {
+        fprintf(stderr, "Error: cannot encrypt and decrypt simultaneously\n");
+        return -1;
+    }
+
+    if (!opts->input) {
+        fprintf(stderr, "Error: input not specified\n");
+        return -1;
+    }
+
+    if (!opts->output) {
+        fprintf(stderr, "Error: output not specified\n");
+        return -1;
+    }
+
     return 0;
-  }
-  if (strcmp(argv[1], "create") == 0) {
-    int i = 2;
-    char** folders = NULL;
-    size_t nfolders = 0;
-    const char* out_file = NULL;
-    int threads = omp_get_max_threads();
-    int encrypt = 0;
-    unsigned char key[32] = {0}, nonce[16] = {0};
-    size_t split_mb = 0;
-    char** usb_dirs = NULL;
-    size_t n_usb = 0;
-    const char* http_url = NULL;
-    while (i < argc) {
-      const char* k = argv[i++];
-      if (strcmp(k, "--folders") == 0) {
-        while (i < argc && argv[i][0] != '-') {
-          folders = (char**)realloc(folders, (nfolders + 1) * sizeof(char*));
-          folders[nfolders++] = argv[i++];
+}
+
+/**
+ * Executes the requested operations on the input.
+ */
+static int execute_operations(const options_t *opts) {
+    file_type_t input_type = get_file_type(opts->input);
+
+    if (input_type == FILE_TYPE_ERROR) {
+        fprintf(stderr, "Error: cannot access input\n");
+        return -1;
+    }
+
+    if (opts->compress) {
+        if (process_path(opts->input, opts->output, compress_file, input_type) != 0) {
+            fprintf(stderr, "Error: compression failed\n");
+            return -1;
         }
-      } else if (strcmp(k, "--out") == 0)
-        out_file = argv[i++];
-      else if (strcmp(k, "--threads") == 0)
-        threads = atoi(argv[i++]);
-      else if (strcmp(k, "--encrypt") == 0)
-        encrypt = (strcmp(argv[i++], "yes") == 0);
-      else if (strcmp(k, "--key") == 0) {
-        if (parse_hex(argv[i++], key, 32) != 0) {
-          fprintf(stderr, "Invalid --key\n");
-          return 1;
+    } else if (opts->decompress) {
+        if (process_path(opts->input, opts->output, decompress_file, input_type) != 0) {
+            fprintf(stderr, "Error: decompression failed\n");
+            return -1;
         }
-      } else if (strcmp(k, "--nonce") == 0) {
-        if (parse_hex(argv[i++], nonce, 16) != 0) {
-          fprintf(stderr, "Invalid --nonce\n");
-          return 1;
+    } else if (opts->encrypt) {
+        if (process_path(opts->input, opts->output, encrypt_file, input_type) != 0) {
+            fprintf(stderr, "Error: encryption failed\n");
+            return -1;
         }
-      } else if (strcmp(k, "--split-mb") == 0)
-        split_mb = (size_t)atol(argv[i++]);
-      else if (strcmp(k, "--usb-dirs") == 0) {
-        while (i < argc && argv[i][0] != '-') {
-          usb_dirs = (char**)realloc(usb_dirs, (n_usb + 1) * sizeof(char*));
-          usb_dirs[n_usb++] = argv[i++];
+    } else if (opts->decrypt) {
+        if (process_path(opts->input, opts->output, decrypt_file, input_type) != 0) {
+            fprintf(stderr, "Error: decryption failed\n");
+            return -1;
         }
-      } else if (strcmp(k, "--http-put") == 0)
-        http_url = argv[i++];
-      else {
-        fprintf(stderr, "Unknown option: %s\n", k);
+    }
+
+    return 0;
+}
+
+int main(int argc, char **argv) {
+    options_t opts;
+
+    if (parse_arguments(argc, argv, &opts) != 0) {
+        print_usage(argv[0]);
         return 1;
-      }
     }
-    if (!folders || !out_file) {
-      usage();
-      return 1;
-    }
-    if (encrypt &&
-        (memcmp(key, "\0", 32) == 0 || memcmp(nonce, "\0", 16) == 0)) {
-      fprintf(stderr, "Encryption enabled but --key/--nonce missing.\n");
-      return 1;
-    }
-    omp_set_num_threads(threads);
-    char** files = NULL;
-    size_t nfiles = 0;
-    if (fs_enum_files((const char**)folders, nfolders, &files, &nfiles) != 0) {
-      fprintf(stderr, "Enumerate failed\n");
-      return 1;
-    }
-    const char* tmp_tar = "/mnt/data/_gsea_tmp.tar";
-    if (tar_create((const char**)files, nfiles, tmp_tar) != 0) {
-      fprintf(stderr, "tar_create failed\n");
-      fs_free_list(files, nfiles);
-      return 1;
-    }
-    fs_free_list(files, nfiles);
-    size_t ntar = 0;
-    unsigned char* tarbuf = fs_read_all(tmp_tar, &ntar);
-    if (!tarbuf) {
-      fprintf(stderr, "read tar failed\n");
-      return 1;
-    }
-    unsigned char* gz = (unsigned char*)malloc(ntar * 2 + 4096);
-    size_t ngz = gzip_compress_fixed(tarbuf, ntar, gz, ntar * 2 + 4096);
-    free(tarbuf);
-    if (ngz == 0) {
-      fprintf(stderr, "gzip failed\n");
-      free(gz);
-      return 1;
-    }
-    if (encrypt) {
-      aes256ctr_t ctx;
-      aes256ctr_init(&ctx, key, nonce);
-      aes256ctr_xor(&ctx, gz, ngz);
-    }
-    if (fs_write_all(out_file, gz, ngz) != 0) {
-      fprintf(stderr, "write output failed\n");
-      free(gz);
-      return 1;
-    }
-    fprintf(stderr, "[CREATE] wrote %s (%zu bytes)\n", out_file, (size_t)ngz);
-#pragma omp parallel sections
-    {
-#pragma omp section
-      {
-        if (split_mb > 0 && n_usb > 0)
-          split_file_round_robin(out_file, split_mb * 1024 * 1024ULL,
-                                 (const char**)usb_dirs, n_usb);
-      }
-#pragma omp section
-      {
-        if (http_url)
-          if (http_put_file(http_url, out_file) != 0)
-            fprintf(stderr, "[CLOUD] upload failed\n");
-      }
-    }
-    free(gz);
-    return 0;
-  } else if (strcmp(argv[1], "restore") == 0) {
-    int i = 2;
-    const char* input = NULL;
-    char** parts = NULL;
-    size_t nparts = 0;
-    const char* dest = NULL;
-    unsigned char key[32] = {0}, nonce[16] = {0};
-    int have_key = 0;
-    while (i < argc) {
-      const char* k = argv[i++];
-      if (strcmp(k, "--input") == 0)
-        input = argv[i++];
-      else if (strcmp(k, "--fragments") == 0) {
-        while (i < argc && argv[i][0] != '-') {
-          parts = (char**)realloc(parts, (nparts + 1) * sizeof(char*));
-          parts[nparts++] = argv[i++];
-        }
-      } else if (strcmp(k, "--dest") == 0)
-        dest = argv[i++];
-      else if (strcmp(k, "--key") == 0) {
-        if (parse_hex(argv[i++], key, 32) != 0) {
-          fprintf(stderr, "Invalid --key\n");
-          return 1;
-        }
-        have_key = 1;
-      } else if (strcmp(k, "--nonce") == 0) {
-        if (parse_hex(argv[i++], nonce, 16) != 0) {
-          fprintf(stderr, "Invalid --nonce\n");
-          return 1;
-        }
-      } else {
-        fprintf(stderr, "Unknown %s\n", k);
+
+    if (validate_options(&opts) != 0) {
         return 1;
-      }
     }
-    if (!dest || (!input && nparts == 0)) {
-      usage();
-      return 1;
+
+    if (execute_operations(&opts) != 0) {
+        return 1;
     }
-    int rc = restore_flow(input, (const char**)parts, nparts,
-                          have_key ? key : NULL, nonce, dest);
-    if (rc != 0) {
-      fprintf(stderr, "restore failed\n");
-      return 1;
-    }
+
     return 0;
-  } else {
-    usage();
-    return 1;
-  }
 }

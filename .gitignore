@@ -44,3 +44,10 @@ build
 *.dwo
 
 gsea
+
+# Test artifacts
+test_file*
+test_directory*
+demo_*
+*.rle
+*.enc

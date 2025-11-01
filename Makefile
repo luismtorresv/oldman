@@ -34,9 +34,6 @@ CFLAGS += -Wunreachable-code
 CFLAGS += -pthread
 CFLAGS += -g
 CFLAGS += -std=c11
-CFLAGS += -fopenmp
-
-LDFLAGS = -fopenmp
 
 # The -MMD and -MP flags together generate Makefiles for us!
 # These files will have .d instead of .o as the output.
@@ -55,7 +52,7 @@ run: $(TARGET_EXEC)
 
 # The final build step.
 $(TARGET_EXEC): $(OBJS)
-	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 # Build step for C source
 $(BUILD_DIR)/%.c.o: %.c
