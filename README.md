@@ -1,4 +1,4 @@
-# `oldman` - Final project/exam for Operating Systems class
+# `gsea` - Final project/exam for Operating Systems class
 
 Command-line utility written in C for compressing and decompressing files or
 directories with symmetric encryption.
@@ -18,10 +18,10 @@ fragments, and includes a minimal HTTP PUT uploader for on‑premises servers
 make
 ````
 
-This builds the oldman binary. Invoke:
+This builds the gsea binary. Invoke:
 
 ````bash
-./oldman
+./gsea
 ````
 
 ## Usage
@@ -29,7 +29,7 @@ This builds the oldman binary. Invoke:
 ### Create a backup
 
 ````bash
-./oldman create \
+./gsea create \
   --folders /path/dir1 /path/dir2 \
   --out /path/output.sbk \
   --threads 8 \
@@ -44,7 +44,7 @@ This builds the oldman binary. Invoke:
 ### Restore a backup
 
 ````bash
-./oldman restore \
+./gsea restore \
   --input /path/output.sbk \
   --dest /path/restore \
   --key  00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff \
@@ -54,7 +54,7 @@ This builds the oldman binary. Invoke:
 ### Restore from fragments
 
 ````bash
-./oldman restore \
+./gsea restore \
   --fragments /media/USB1/output.sbk.part_000000 /media/USB2/output.sbk.part_000001 \
   --dest /path/restore \
   --key  00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff \
@@ -71,15 +71,3 @@ This builds the oldman binary. Invoke:
   scope.
 - The inflater supports only fixed‑Huffman streams produced by this encoder.
 - The HTTP uploader supports only `http://` for demonstration.
-
-## Why the name `oldman`?
-
-Late Hungarian mathematician Paul Erdős quipped that:
-
-> The first sign of senility is when a man forgets his theorems. The second
-> sign is when he forgets to zip up. The third sign is when he forgets to zip
-> down.[^erdos]
-
-[erdos]: As reported by Wikiquote to be quoted in _Wonders of Numbers :
-Adventures in Mathematics, Mind, and Meaning_ (2002) by Clifford A. Pickover,
-p. 64)

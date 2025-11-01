@@ -1,7 +1,7 @@
 # Template adapted from that of Job Vranish
 # (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
 
-TARGET_EXEC := oldman
+TARGET_EXEC := gsea
 
 BUILD_DIR := ./build
 SRC_DIRS  := ./src

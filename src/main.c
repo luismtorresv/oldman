@@ -14,12 +14,12 @@
 static void usage(void) {
   printf(
       "Usage:\n"
-      "  oldman create --folders DIR... --out FILE [--threads N] [--encrypt "
+      "  gsea create --folders DIR... --out FILE [--threads N] [--encrypt "
       "yes|no]\n"
       "                    [--key HEX64] [--nonce HEX32] [--split-mb N] "
       "[--usb-dirs DIR...]\n"
       "                    [--http-put URL]\n"
-      "  oldman restore (--input FILE | --fragments PARTS... ) --dest DIR "
+      "  gsea restore (--input FILE | --fragments PARTS... ) --dest DIR "
       "[--key HEX64] [--nonce HEX32]\n");
 }
 static int parse_hex(const char* s, unsigned char* out, size_t outlen) {
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
       fprintf(stderr, "Enumerate failed\n");
       return 1;
     }
-    const char* tmp_tar = "/mnt/data/_oldman_tmp.tar";
+    const char* tmp_tar = "/mnt/data/_gsea_tmp.tar";
     if (tar_create((const char**)files, nfiles, tmp_tar) != 0) {
       fprintf(stderr, "tar_create failed\n");
       fs_free_list(files, nfiles);
